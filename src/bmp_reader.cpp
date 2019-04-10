@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 #include <math.h>
+#include <boost/python.hpp>
+// #include <boost/python/list.hpp>
 
 #define ERROR NULL;
 using namespace std;
@@ -138,8 +140,8 @@ VImage* loadBMP(const char* filename)
 
         delete pFileHeader;
         delete pInfoHeader;
-        delete pRGBPallete;
-        delete tempBuf;
+        delete pRGBPallete[];
+        delete tempBuf[];
 
         bmpFile.close();
 
@@ -156,25 +158,50 @@ VImage* loadBMP(const char* filename)
 }
 
 
-int main()
+void readBMP(const char* filename)
 {
-    VImage* Image = loadBMP("/Users/simon/Desktop/CV第二次作业/Lena.bmp");
+    VImage* Image = loadBMP(filename);
 
-    ofstream fout,fout_plot;
-    fout.open("./lena_data.dat");
-    fout_plot.open("./lena_data_plot.txt");
+    ofstream fout;
+    fout.open("./bmp_data.tmp");
     for(int i=0;i<Image->InfoHeader.biHeight;i++)
     {
         for(int j=0;j<Image->InfoHeader.biWidth;j++)
         {
             fout<<int(Image->pixel[i][j])<<' ';
-            fout_plot << (".:-=+*#%@"[(int) (Image->pixel[i][j] / 32)]);
         }
         fout<<endl;
-        fout_plot<<endl;
     }
     fout.close();
-    fout_plot.close();
-
-    return 0;
 }
+
+BOOST_PYTHON_MODULE(bmp_reader)
+{
+    using namespace boost::python;
+    def("readBMP", readBMP);
+}
+
+
+
+// int main()
+// {
+//     VImage* Image = loadBMP("/Users/simon/Desktop/CV第二次作业/Lena.bmp");
+
+//     ofstream fout,fout_plot;
+//     fout.open("./lena_data.dat");
+//     fout_plot.open("./lena_data_plot.txt");
+//     for(int i=0;i<Image->InfoHeader.biHeight;i++)
+//     {
+//         for(int j=0;j<Image->InfoHeader.biWidth;j++)
+//         {
+//             fout<<int(Image->pixel[i][j])<<' ';
+//             fout_plot << (".:-=+*#%@"[(int) (Image->pixel[i][j] / 32)]);
+//         }
+//         fout<<endl;
+//         fout_plot<<endl;
+//     }
+//     fout.close();
+//     fout_plot.close();
+
+//     return 0;
+// }

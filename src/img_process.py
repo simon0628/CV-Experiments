@@ -3,7 +3,18 @@
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
+import os
+import bmp_reader
 
+def load_bmp(filename):
+    tmp_file = './bmp_data.tmp'
+    bmp_reader.readBMP(filename)
+    if os.path.exists(tmp_file):
+        bmp_arr = np.loadtxt(tmp_file).astype(np.int)
+        os.remove(tmp_file)
+        return bmp_arr
+    else:
+        raise Exception('Error with module bmp_reader!')
 
 def show_greyval(img_arr):
     colum_sum = np.sum(img_arr,axis=0)
@@ -24,7 +35,7 @@ def show_grey_histogram(img_arr):
     plt.show()
 
 def pad_img(img_arr, rows, cols, scale):
-    padded_img = np.pad(lena_arr,((0,rows*(scale-1)),(0,cols*(scale-1))),'constant',constant_values = 0)
+    padded_img = np.pad(img_arr,((0,rows*(scale-1)),(0,cols*(scale-1))),'constant',constant_values = 0)
     return padded_img
 
 def nearest_inter(img_arr, tar_height, tar_width):
@@ -121,29 +132,28 @@ def trilinear_inter(img_arr,tar_height,tar_width):
     return new_img
 
 
+# lena_grey = Image.open('./lena_pic/Lena.bmp').convert('L')
+# img_arr = np.array(lena_grey)
+
+img_arr = load_bmp('/Users/simon/Desktop/CV-Experiments/pic/Lena.bmp')
+# print(img_arr)
+[rows, cols] = img_arr.shape
+
+# show_greyval(img_arr)
+# show_grey_histogram(img_arr) # warning: slow
+
 scale = 4
 
-# lena_grey = Image.open('./lena_pic/Lena.bmp').convert('L')
-# lena_arr = np.array(lena_grey)
+padded_arr = pad_img(img_arr, rows, cols, scale)
+Image.fromarray(np.uint8(padded_arr)).save('../res/padded.png')
 
-lena_arr = np.loadtxt('./lena_data.dat').astype(np.int)
-# print(lena_arr)
-[rows, cols] = lena_arr.shape
+nearest_inter_arr = nearest_inter(img_arr, rows*scale, cols * scale)
+Image.fromarray(np.uint8(nearest_inter_arr)).save('../res/nearest_inter.png')
 
-show_greyval(lena_arr)
-# show_grey_histogram(lena_arr) # warning: slow
+bilinear_inter_arr = bilinear_inter(img_arr, rows*scale, cols * scale)
+Image.fromarray(np.uint8(bilinear_inter_arr)).save('../res/bilinear_inter.png')
 
-
-padded_arr = pad_img(lena_arr, rows, cols, scale)
-Image.fromarray(np.uint8(padded_arr)).save('./res/padded_arr.png')
-
-nearest_inter_arr = nearest_inter(lena_arr, rows*scale, cols * scale)
-Image.fromarray(np.uint8(nearest_inter_arr)).save('./res/nearest_inter_arr.png')
-
-bilinear_inter_arr = bilinear_inter(lena_arr, rows*scale, cols * scale)
-Image.fromarray(np.uint8(bilinear_inter_arr)).save('./res/bilinear_inter_arr.png')
-
-# trilinear_inter_arr = trilinear_inter(lena_arr, rows*scale, cols * scale)
-# Image.fromarray(np.uint8(trilinear_inter_arr)).save('./res/trilinear_inter_arr.png')
+# trilinear_inter_arr = trilinear_inter(img_arr, rows*scale, cols * scale)
+# Image.fromarray(np.uint8(trilinear_inter_arr)).save('../res/trilinear_inter.png')
 
 

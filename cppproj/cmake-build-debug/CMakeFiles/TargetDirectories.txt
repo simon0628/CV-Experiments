@@ -1,3 +1,0 @@
-/Users/simon/Desktop/CV第二次作业/cppproj/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/Users/simon/Desktop/CV第二次作业/cppproj/cmake-build-debug/CMakeFiles/edit_cache.dir
-/Users/simon/Desktop/CV第二次作业/cppproj/cmake-build-debug/CMakeFiles/cppproj.dir

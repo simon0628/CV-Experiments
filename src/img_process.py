@@ -167,7 +167,8 @@ def equalHist(img):
             equalHistImage[i][j] = outPut_q[img[i][j]]
     return equalHistImage
 
-img_arr = load_bmp('/Users/simon/Desktop/CV-Experiments/pic/Lena.bmp')
+lena_grey = Image.open('./lena_pic/Lena.bmp').convert('L')
+img_arr = np.array(lena_grey)
 # print(img_arr)
 [rows, cols] = img_arr.shape
 

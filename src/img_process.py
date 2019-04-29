@@ -7,94 +7,91 @@ import math
 import os
 # import cv2
 
+def plot_grey_histogram(img_arr):
+    hist = cal_grey_hist(img_arr)
+    plt.xlim(0, 256)
+    plt.bar(range(len(hist)),hist,width = 1, align = 'center',color='black', alpha = 0.8)
 
-def show_grey_histogram(img_arr):
-    # print(np.histogram(img_arr))
-    plt.hist(img_arr)
-    plt.xlabel('grey_value')
-    plt.ylabel('count')
-    plt.show()
+def cal_grey_hist(img_arr):
+    hist = np.zeros([256], np.uint32)
+    for row in img_arr:
+        for pixel in row:
+            # print(pixel)
+            hist[pixel] = hist[pixel] + 1
+            
+    return hist
 
-
-def grayHist(img):
-    h, w = img.shape[:2]
-    pixelSequence = img.reshape([h * w, ])
-    numberBins = 256
-    histogram, bins, patch = plt.hist(pixelSequence, numberBins,
-                                      facecolor='black', histtype='bar')
-    plt.xlabel("gray label")
-    plt.ylabel("number of pixels")
-    plt.axis([0, 255, 0, np.max(histogram)])
-    plt.show()
-
-
-def equalHist(img):
+def equal_his(img_arr):
     # 灰度图像矩阵的高、宽
-    h, w = img.shape
+    h, w = img_arr.shape
+
     # 第一步：计算灰度直方图
-    grayHist = calcGrayHist(img)
+    hist_arr = cal_grey_hist(img_arr)
+ 
     # 第二步：计算累加灰度直方图
-    zeroCumuMoment = np.zeros([256], np.uint32)
-    for p in range(256):
-        if p == 0:
-            zeroCumuMoment[p] = grayHist[0]
-        else:
-            zeroCumuMoment[p] = zeroCumuMoment[p - 1] + grayHist[p]
+    accumulation = np.zeros([256], np.uint32)
+    accumulation[0] = hist_arr[0]
+    for i in range(1,256):
+        accumulation[i] = accumulation[i - 1] + hist_arr[i]
+ 
     # 第三步：根据累加灰度直方图得到输入灰度级和输出灰度级之间的映射关系
-    outPut_q = np.zeros([256], np.uint8)
+    grey_cast = np.zeros([256], np.uint8)
     cofficient = 256.0 / (h * w)
-    for p in range(256):
-        q = cofficient * float(zeroCumuMoment[p]) - 1
+    for i in range(256):
+        q = cofficient * float(accumulation[i]) - 1
         if q >= 0:
-            outPut_q[p] = math.floor(q)
+            grey_cast[i] = math.floor(q)
         else:
-            outPut_q[p] = 0
+            grey_cast[i] = 0
+
     # 第四步：得到直方图均衡化后的图像
-    equalHistImage = np.zeros(img.shape, np.uint8)
+    hist_res = np.zeros(img_arr.shape, np.uint8)
     for i in range(h):
         for j in range(w):
-            equalHistImage[i][j] = outPut_q[img[i][j]]
-    return equalHistImage
+            hist_res[i][j] = grey_cast[img_arr[i][j]]
+    return hist_res
+
+pic_num = 2
 
 def pic_resize(temppath):
     # min_row = math.inf
     # min_col = math.inf
-    for i in range(1,2000):
+    for i in range(1, pic_num + 1):
         readname = '../pics/ILSVRC2017_test_%08d.JPEG' % i
         writename = '%sILSVRC2017_test_%08d.JPEG' % (temppath, i)
 
         with Image.open(readname) as img:
-            img.resize((500,333)).save(writename)
-    #     [row, col] = Image.open(filename).size
-    #     if row < min_row:
-    #         min_row = row
-    #     if col < min_col:
-    #         min_col = col
-    # print(min_row)
-    # print(min_col)
+            img.convert('L').resize((500,333)).save(writename)
 
-pic_resize('../res/')
-# lena_grey = Image.open('./pics/Lena.bmp').convert('L')
-# img_arr = np.array(lena_grey)
-# print(img_arr)
-# [rows, cols] = img_arr.shape
 
-# show_greyval(img_arr)
-# show_grey_histogram(img_arr) # warning: slow
+def read_pics(pic_path):
+    pics_arr = list()
+    for i in range(1, pic_num + 1):
+        readname = pic_path + 'ILSVRC2017_test_%08d.JPEG' % i
+        with Image.open(readname) as img:
+            pics_arr.append(np.array(img, dtype = np.int32))
+    return pics_arr
 
-# scale = 4
 
-# padded_arr = pad_img(img_arr, rows, cols, scale)
-# Image.fromarray(np.uint8(padded_arr)).save('../res/padded.png')
 
-# nearest_inter_arr = nearest_inter(img_arr, rows*scale, cols * scale)
-# Image.fromarray(np.uint8(nearest_inter_arr)).save('../res/nearest_inter.png')
+temppath = '../res/temp/'
+respath = '../res/'
+histpath = '../res/hist/'
 
-# bilinear_inter_arr = bilinear_inter(img_arr, rows*scale, cols * scale)
-# Image.fromarray(np.uint8(bilinear_inter_arr)).save('../res/bilinear_inter.png')
+# pic_resize(temppath)
 
-# trilinear_inter_arr = trilinear_inter(img_arr, rows*scale, cols * scale)
-# Image.fromarray(np.uint8(trilinear_inter_arr)).save('../res/trilinear_inter.png')
+pics_arr = read_pics(temppath)
 
-# show_FFT(img_arr)
-# show_DCT(img_arr)
+cnt = 1
+for pic_arr in pics_arr:
+    plt.subplot(2,1,1)
+    plot_grey_histogram(pic_arr)
+
+    equal_pic_arr = equal_his(pic_arr)
+    plt.subplot(2,1,2)
+    plot_grey_histogram(equal_pic_arr)
+
+    plt.savefig(histpath + 'res' + str(cnt) + '.png')
+    plt.close()
+    Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '.png')
+    cnt = cnt + 1

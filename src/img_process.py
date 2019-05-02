@@ -9,10 +9,9 @@ import os
 
 def plot_grey_histogram(img_arr):
     hist = cal_grey_hist(img_arr)
-    if hist[0] > np.max(hist[1:]):
-        hist[0] = 0    
-    if hist[-1] > np.max(hist[:-1]):
-        hist[-1] = 0
+
+    # max_index = np.argmax(hist)
+    # hist[max_index] = 0
     # plt.xlim(0, 256)
     # plt.ylim(0, img_arr.max())
     # plt.axis([0, 255, 0, np.max(img_arr)])

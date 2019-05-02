@@ -9,7 +9,13 @@ import os
 
 def plot_grey_histogram(img_arr):
     hist = cal_grey_hist(img_arr)
-    plt.xlim(0, 256)
+    if hist[0] > np.max(hist[1:]):
+        hist[0] = 0    
+    if hist[-1] > np.max(hist[:-1]):
+        hist[-1] = 0
+    # plt.xlim(0, 256)
+    # plt.ylim(0, img_arr.max())
+    # plt.axis([0, 255, 0, np.max(img_arr)])
     plt.bar(range(len(hist)),hist,width = 1, align = 'center',color='black', alpha = 0.8)
 
 def cal_grey_hist(img_arr):
@@ -104,16 +110,24 @@ pics_arr = read_pics(temppath)
 
 cnt = 1
 for pic_arr in pics_arr:
-    plt.subplot(3,1,1)
+    p = plt.subplot(2,2,1)
+    p.set_title('Histogram of Raw Picture',fontsize='medium')
     plot_grey_histogram(pic_arr)
     
 
     equal_pic_arr = equal_his(pic_arr)
-    plt.subplot(3,1,2)
+    p = plt.subplot(2,2,2)
+    p.set_title('Histogram After Histo Equal',fontsize='medium')
     plot_grey_histogram(equal_pic_arr)
 
     point_pic_arr = point_enhance(pic_arr)
-    plt.subplot(3,1,3)
+    p = plt.subplot(2,2,3)
+    p.set_title('Histogram After Point Enhance',fontsize='medium')
+    plot_grey_histogram(point_pic_arr)
+
+    point_pic_arr = point_enhance(pic_arr)
+    p = plt.subplot(2,2,4)
+    p.set_title('Histogram After Realm Enhance',fontsize='medium')
     plot_grey_histogram(point_pic_arr)
 
     plt.savefig(histpath + 'res' + str(cnt) + '.png')

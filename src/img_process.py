@@ -51,7 +51,27 @@ def equal_his(img_arr):
             hist_res[i][j] = grey_cast[img_arr[i][j]]
     return hist_res
 
-pic_num = 2
+def point_cast(x):
+    if x <= 48:
+        y = 0
+    elif x > 218:
+        y = 255
+    else:
+        y = 1.5*x-72
+
+    if y > 255:
+        y = 255
+    return y
+
+def point_enhance(img_arr):
+    h, w = img_arr.shape
+    res = np.zeros([h,w], np.uint8)
+    for i in range(h):
+        for j in range(w):
+            res[i][j] = point_cast(img_arr[i][j])
+    return res
+
+pic_num = 5
 
 def pic_resize(temppath):
     # min_row = math.inf
@@ -76,7 +96,7 @@ def read_pics(pic_path):
 
 temppath = '../res/temp/'
 respath = '../res/'
-histpath = '../res/hist/'
+histpath = '../res/histogram/'
 
 # pic_resize(temppath)
 
@@ -84,14 +104,21 @@ pics_arr = read_pics(temppath)
 
 cnt = 1
 for pic_arr in pics_arr:
-    plt.subplot(2,1,1)
+    plt.subplot(3,1,1)
     plot_grey_histogram(pic_arr)
+    
 
     equal_pic_arr = equal_his(pic_arr)
-    plt.subplot(2,1,2)
+    plt.subplot(3,1,2)
     plot_grey_histogram(equal_pic_arr)
+
+    point_pic_arr = point_enhance(pic_arr)
+    plt.subplot(3,1,3)
+    plot_grey_histogram(point_pic_arr)
 
     plt.savefig(histpath + 'res' + str(cnt) + '.png')
     plt.close()
-    Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '.png')
+
+    Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
+    Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point.png')
     cnt = cnt + 1

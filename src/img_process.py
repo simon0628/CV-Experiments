@@ -5,20 +5,31 @@ from PIL import Image
 import numpy as np
 import math
 import os
-# import cv2
 
+pic_num = 5
+
+# 绘制图像灰度直方图
 def plot_grey_histogram(img_arr):
+    '''
+    :param image_arr: 图片矩阵
+    '''
     hist = cal_grey_hist(img_arr)
 
     max_index = np.argmax(hist)
     hist[max_index] = hist[max_index-1]*1.1 if max_index > 0 else hist[max_index+1]*1.1
 
+    # 将直方图拉伸至plot边缘
     # plt.xlim(0, 256)
     # plt.ylim(0, img_arr.max())
     # plt.axis([0, 255, 0, np.max(img_arr)])
     plt.bar(range(len(hist)),hist,width = 1, align = 'center',color='black', alpha = 0.8)
 
+
 def cal_grey_hist(img_arr):
+    '''
+    :param image_arr: 图片矩阵
+    :return: hist: 256维数组，存储每种灰度值的统计数量
+    '''
     hist = np.zeros([256], np.uint32)
     for row in img_arr:
         for pixel in row:
@@ -27,20 +38,24 @@ def cal_grey_hist(img_arr):
             
     return hist
 
+# 直方图均衡
 def equal_his(img_arr):
-    # 灰度图像矩阵的高、宽
+    '''
+    :param image_arr: 图片矩阵
+    :return: hist_res: 图像经过直方图均衡化的结果
+    '''    
     h, w = img_arr.shape
 
-    # 第一步：计算灰度直方图
+    # 计算灰度值统计量
     hist_arr = cal_grey_hist(img_arr)
  
-    # 第二步：计算累加灰度直方图
+    # 计算灰度值的累加数组
     accumulation = np.zeros([256], np.uint32)
     accumulation[0] = hist_arr[0]
     for i in range(1,256):
         accumulation[i] = accumulation[i - 1] + hist_arr[i]
  
-    # 第三步：根据累加灰度直方图得到输入灰度级和输出灰度级之间的映射关系
+    # 根据累加灰度直方图得到输入灰度级和输出灰度级之间的映射关系
     grey_cast = np.zeros([256], np.uint8)
     cofficient = 256.0 / (h * w)
     for i in range(256):
@@ -50,14 +65,21 @@ def equal_his(img_arr):
         else:
             grey_cast[i] = 0
 
-    # 第四步：得到直方图均衡化后的图像
+    # 得到直方图均衡化后的图像
     hist_res = np.zeros(img_arr.shape, np.uint8)
     for i in range(h):
         for j in range(w):
             hist_res[i][j] = grey_cast[img_arr[i][j]]
     return hist_res
 
+
 def point_cast(x):
+    '''
+    :param x: 输入灰度值
+    :return: y: 映射结果
+    :note: 点操作的映射函数    
+    '''
+    # 采用Z型函数，可提高对比度
     if x <= 48:
         y = 0
     elif x > 218:
@@ -65,11 +87,17 @@ def point_cast(x):
     else:
         y = 1.5*x-72
 
+    # 规范输出灰度值范围
     if y > 255:
         y = 255
     return y
 
+# 基于点处理的增强
 def point_enhance(img_arr):
+    '''
+    :param image_arr: 图片矩阵
+    :return: res: 图像经过点增强的运算结果
+    '''    
     h, w = img_arr.shape
     res = np.zeros([h,w], np.uint8)
     for i in range(h):
@@ -77,6 +105,7 @@ def point_enhance(img_arr):
             res[i][j] = point_cast(img_arr[i][j])
     return res
 
+# 图片卷积操作
 def img_convolve(image, kernel):
     '''
     :param image: 图片矩阵
@@ -220,29 +249,13 @@ def prewitt_filter(image, prewitt_x, prewitt_y):
             img_prediction[i][j] = max(img_X[i][j], img_Y[i][j])
     return img_prediction
 
-# 滤波3x3
-kernel_3x3 = np.ones((3, 3))
-# 滤波5x5
-kernel_5x5 = np.ones((5, 5))
 
-# sobel 算子
-sobel_1 = np.array([[-1, 0, 1],
-                    [-2, 0, 2],
-                    [-1, 0, 1]])
-
-sobel_2 = np.array([[-1, -2, -1],
-                    [0, 0, 0],
-                    [1, 2, 1]])
-# prewitt 算子
-prewitt_1 = np.array([[-1, 0, 1],
-                      [-1, 0, 1],
-                      [-1, 0, 1]])
-
-prewitt_2 = np.array([[-1, -1, -1],
-                      [0, 0, 0],
-                      [1, 1, 1]])
-
+# 基于邻域处理的增强
 def area_enhance(img_arr, method=None):
+    '''
+    :param image_arr: 图片矩阵
+    :return: res: 图像经过邻域增强的运算结果
+    '''   
     h, w = img_arr.shape
 
     if method == 'sobel':
@@ -265,11 +278,8 @@ def area_enhance(img_arr, method=None):
                 res[i][j] = 0
     return res
 
-pic_num = 5
-
+# 图像大小更正，统一为500*333，并存储在临时路径中
 def pic_resize(temppath):
-    # min_row = math.inf
-    # min_col = math.inf
     for i in range(1, pic_num + 1):
         readname = '../pics/ILSVRC2017_test_%08d.JPEG' % i
         writename = '%sILSVRC2017_test_%08d.JPEG' % (temppath, i)
@@ -277,7 +287,7 @@ def pic_resize(temppath):
         with Image.open(readname) as img:
             img.convert('L').resize((500,333)).save(writename)
 
-
+# 从目标路径中读取图片，需要保证图片已经预处理完毕，直接可用
 def read_pics(pic_path):
     pics_arr = list()
     for i in range(1, pic_num + 1):
@@ -287,39 +297,72 @@ def read_pics(pic_path):
     return pics_arr
 
 
-
+# 工程路径
 temppath = '../res/temp/'
 respath = '../res/'
 histpath = '../res/histogram/'
 
-# pic_resize(temppath)
 
+# sobel 算子
+sobel_1 = np.array([[-1, 0, 1],
+                    [-2, 0, 2],
+                    [-1, 0, 1]])
+
+sobel_2 = np.array([[-1, -2, -1],
+                    [0, 0, 0],
+                    [1, 2, 1]])
+# prewitt 算子
+prewitt_1 = np.array([[-1, 0, 1],
+                      [-1, 0, 1],
+                      [-1, 0, 1]])
+
+prewitt_2 = np.array([[-1, -1, -1],
+                      [0, 0, 0],
+                      [1, 1, 1]])
+
+
+pic_resize(temppath)
 pics_arr = read_pics(temppath)
 
 cnt = 1
 for pic_arr in pics_arr:
+    # 绘制原始图像灰度直方图
     p = plt.subplot(2,2,1)
     p.set_title('Histogram of Raw Picture',fontsize='medium')
     plot_grey_histogram(pic_arr)
     
+    # 直方图均衡
+    equal_pic_arr = equal_his(pic_arr)
+    p = plt.subplot(2,2,2)
+    p.set_title('Histogram After Histo Equal',fontsize='medium')
+    plot_grey_histogram(equal_pic_arr)
+    Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
 
-    # equal_pic_arr = equal_his(pic_arr)
-    # p = plt.subplot(2,2,2)
-    # p.set_title('Histogram After Histo Equal',fontsize='medium')
-    # plot_grey_histogram(equal_pic_arr)
-    # Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
+    # 点操作的图像增强
+    point_pic_arr = point_enhance(pic_arr)
+    p = plt.subplot(2,2,3)
+    p.set_title('Histogram After Point Enhance',fontsize='medium')
+    plot_grey_histogram(point_pic_arr)
+    Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point.png')
 
-    # point_pic_arr = point_enhance(pic_arr)
-    # p = plt.subplot(2,2,3)
-    # p.set_title('Histogram After Point Enhance',fontsize='medium')
-    # plot_grey_histogram(point_pic_arr)
-    # Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point.png')
-
-    area_pic_arr = area_enhance(pic_arr, 'mid')
+    # 邻域操作的图像增强
+    area_filter_method = 'average'
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
     p = plt.subplot(2,2,4)
     p.set_title('Histogram After Area Enhance',fontsize='medium')
     plot_grey_histogram(area_pic_arr)
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area.png')
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+
+
+    # Sobel和prewitt边缘处理
+    area_filter_method = 'sobel'
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+
+    area_filter_method = 'prewitt'
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+
 
     plt.savefig(histpath + 'res' + str(cnt) + '.png')
     plt.close()

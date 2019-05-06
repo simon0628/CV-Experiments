@@ -77,10 +77,10 @@ def point_enhance(img_arr):
             res[i][j] = point_cast(img_arr[i][j])
     return res
 
-def imgConvolve(image, kernel):
+def img_convolve(image, kernel):
     '''
     :param image: 图片矩阵
-    :param kernel: 滤波窗口
+    :param kernel_size: 滤波窗口size
     :return:卷积后的矩阵
     '''
     img_h = int(image.shape[0])
@@ -92,10 +92,10 @@ def imgConvolve(image, kernel):
     padding_w = int((kernel_w - 1) / 2)
 
     convolve_h = int(img_h + 2 * padding_h)
-    convolve_W = int(img_w + 2 * padding_w)
+    convolve_w = int(img_w + 2 * padding_w)
 
     # 分配空间
-    img_padding = np.zeros((convolve_h, convolve_W))
+    img_padding = np.zeros((convolve_h, convolve_w))
     # 中心填充图片
     img_padding[padding_h:padding_h + img_h, padding_w:padding_w + img_w] = image[:, :]
     # 卷积结果
@@ -110,17 +110,77 @@ def imgConvolve(image, kernel):
 
 
 # 均值滤波
-def imgAverageFilter(image, kernel):
+def average_filter(image, kernel_size):
     '''
     :param image: 图片矩阵
-    :param kernel: 滤波窗口
+    :param kernel_size: 滤波窗口size
     :return:均值滤波后的矩阵
     '''
-    return imgConvolve(image, kernel) * (1.0 / kernel.size)
+    kernel = np.ones((kernel_size, kernel_size))
+    return img_convolve(image, kernel) * (1.0 / kernel.size)
+
+# 最大值滤波
+def max_filter(image, kernel_size):
+    '''
+    :param image: 图片矩阵
+    :param kernel_size: 滤波窗口size
+    :return:最大值滤波后的矩阵
+    '''
+
+    img_h = int(image.shape[0])
+    img_w = int(image.shape[1])
+    # padding
+    padding = int((kernel_size - 1) / 2)
+
+    padding_h = int(img_h + 2 * padding)
+    padding_w = int(img_w + 2 * padding)
+
+    # 分配空间
+    img_padding = np.zeros((padding_h, padding_w))
+    # print(img_padding.shape)
+    # 中心填充图片
+    img_padding[padding:padding + img_h, padding:padding + img_w] = image[:, :]
+
+    res = np.zeros((img_h, img_w))
+
+    for i in range(padding, padding + img_h):
+        for j in range(padding, padding + img_w):
+            filtered = img_padding[i-padding:i+padding+1, j-padding:j+padding+1]
+            res[i-padding][j-padding] = max(map(max,filtered))      
+    return res
+
+# 中值滤波
+def mid_filter(image, kernel_size):
+    '''
+    :param image: 图片矩阵
+    :param kernel_size: 滤波窗口size
+    :return:中值滤波后的矩阵
+    '''
+    img_h = int(image.shape[0])
+    img_w = int(image.shape[1])
+    # padding
+    padding = int((kernel_size - 1) / 2)
+
+    padding_h = int(img_h + 2 * padding)
+    padding_w = int(img_w + 2 * padding)
+
+    # 分配空间
+    img_padding = np.zeros((padding_h, padding_w))
+    # print(img_padding.shape)
+    # 中心填充图片
+    img_padding[padding:padding + img_h, padding:padding + img_w] = image[:, :]
+
+    res = np.zeros((img_h, img_w))
+
+    for i in range(padding, padding + img_h):
+        for j in range(padding, padding + img_w):
+            filtered = img_padding[i-padding:i+padding+1, j-padding:j+padding+1]
+            res[i-padding][j-padding] = np.median(filtered)    
+    return res
 
 
 # 高斯滤波
-def imgGaussian(sigma):
+def gaussian(sigma):
     '''
     :param sigma: σ标准差
     :return: 高斯滤波器的模板
@@ -134,25 +194,25 @@ def imgGaussian(sigma):
 
 
 # Sobel Edge
-def sobelEdge(image, sobel):
+def sobel_filter(image, sobel):
     '''
     :param image: 图片矩阵
     :param sobel: 滤波窗口
     :return:Sobel处理后的矩阵
     '''
-    return imgConvolve(image, sobel)
+    return img_convolve(image, sobel)
 
 
 # Prewitt Edge
-def prewittEdge(image, prewitt_x, prewitt_y):
+def prewitt_filter(image, prewitt_x, prewitt_y):
     '''
     :param image: 图片矩阵
     :param prewitt_x: 竖直方向
     :param prewitt_y:  水平方向
     :return:处理后的矩阵
     '''
-    img_X = imgConvolve(image, prewitt_x)
-    img_Y = imgConvolve(image, prewitt_y)
+    img_X = img_convolve(image, prewitt_x)
+    img_Y = img_convolve(image, prewitt_y)
 
     img_prediction = np.zeros(img_X.shape)
     for i in range(img_prediction.shape[0]):
@@ -182,12 +242,27 @@ prewitt_2 = np.array([[-1, -1, -1],
                       [0, 0, 0],
                       [1, 1, 1]])
 
-def area_enhance(img_arr, cast_size = 3, cast = [1,2]):
+def area_enhance(img_arr, method=None):
     h, w = img_arr.shape
-    res = np.zeros([h,w], np.uint8)
+
+    if method == 'sobel':
+        res = np.array(sobel_filter(img_arr, sobel_1), dtype=np.int)
+    elif method == 'prewitt':
+        res = np.array(prewitt_filter(img_arr, prewitt_1, prewitt_2), dtype=np.int)
+    elif method == 'max':
+        res = np.array(max_filter(img_arr, 3), dtype=np.int)
+    elif method == 'mid':
+        res = np.array(mid_filter(img_arr, 3), dtype=np.int)
+    else:
+        res = np.array(average_filter(img_arr, 3), dtype=np.int)
+
+    h, w = res.shape
     for i in range(h):
         for j in range(w):
-            res[i][j] = point_cast(img_arr[i][j])
+            if res[i][j] > 255:
+                res[i][j] = 255
+            elif res[i][j] < 0:
+                res[i][j] = 0
     return res
 
 pic_num = 5
@@ -228,25 +303,25 @@ for pic_arr in pics_arr:
     plot_grey_histogram(pic_arr)
     
 
-    equal_pic_arr = equal_his(pic_arr)
-    p = plt.subplot(2,2,2)
-    p.set_title('Histogram After Histo Equal',fontsize='medium')
-    plot_grey_histogram(equal_pic_arr)
+    # equal_pic_arr = equal_his(pic_arr)
+    # p = plt.subplot(2,2,2)
+    # p.set_title('Histogram After Histo Equal',fontsize='medium')
+    # plot_grey_histogram(equal_pic_arr)
+    # Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
 
-    point_pic_arr = point_enhance(pic_arr)
-    p = plt.subplot(2,2,3)
-    p.set_title('Histogram After Point Enhance',fontsize='medium')
-    plot_grey_histogram(point_pic_arr)
+    # point_pic_arr = point_enhance(pic_arr)
+    # p = plt.subplot(2,2,3)
+    # p.set_title('Histogram After Point Enhance',fontsize='medium')
+    # plot_grey_histogram(point_pic_arr)
+    # Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point.png')
 
-    area_pic_arr = area_enhance(pic_arr)
+    area_pic_arr = area_enhance(pic_arr, 'mid')
     p = plt.subplot(2,2,4)
     p.set_title('Histogram After Area Enhance',fontsize='medium')
     plot_grey_histogram(area_pic_arr)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area.png')
 
     plt.savefig(histpath + 'res' + str(cnt) + '.png')
     plt.close()
 
-    Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
-    Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point.png')
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area.png')
     cnt = cnt + 1

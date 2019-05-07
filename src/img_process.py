@@ -5,8 +5,7 @@ from PIL import Image
 import numpy as np
 import math
 import os
-
-pic_num = 5
+import sys
 
 # 绘制图像灰度直方图
 def plot_grey_histogram(img_arr):
@@ -321,6 +320,23 @@ prewitt_2 = np.array([[-1, -1, -1],
                       [1, 1, 1]])
 
 
+pic_num = 5
+area_filter_method = 'average'
+
+for i in range(len(sys.argv)):
+    if sys.argv[i] == '-number' or sys.argv[i] ==  '-n':
+        pic_num = int(sys.argv[i+1])
+    if sys.argv[i] == '-method' or sys.argv[i] ==  '-m':
+        area_filter_method = sys.argv[i+1]
+
+print('开始进行图像处理，参数如下')
+print('    处理数量：%d张' % pic_num)
+print('    点处理函数：对比度增强')
+print('    邻域处理函数：%s滤波' % area_filter_method)
+print('处理中...')
+
+
+
 pic_resize(temppath)
 pics_arr = read_pics(temppath)
 
@@ -346,7 +362,6 @@ for pic_arr in pics_arr:
     Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point.png')
 
     # 邻域操作的图像增强
-    area_filter_method = 'average'
     area_pic_arr = area_enhance(pic_arr, area_filter_method)
     p = plt.subplot(2,2,4)
     p.set_title('Histogram After Area Enhance',fontsize='medium')
@@ -367,4 +382,5 @@ for pic_arr in pics_arr:
     plt.savefig(histpath + 'res' + str(cnt) + '.png')
     plt.close()
 
+    print('处理完%d张' % cnt)
     cnt = cnt + 1

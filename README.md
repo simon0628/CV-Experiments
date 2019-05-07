@@ -1,4 +1,4 @@
-# 项目目标
+## 项目目标
 
 **From Digital Image Processing & Computer Vision Experiments**
 
@@ -16,9 +16,7 @@
 
 
 
-# 程序说明文档
-
-### 工程结构
+## 工程结构
 
 - src文件夹：存储程序源代码，主要为`img_process.py`文件
 - `cv_environment.yaml`为Anaconda配置文件，用于移植实验环境
@@ -30,7 +28,7 @@
 
 
 
-### 运行说明
+## 运行说明
 
 1. `conda env create -f cv_environment.yaml`导入实验环境
 1. `source activate image_process`进入实验环境
@@ -42,7 +40,7 @@
 
 
 
-### 运行结果示例
+## 运行结果示例
 
 ##### 程序输出
 
@@ -83,7 +81,7 @@
 
 ![res1](doc/md_pic/res1.png)
 
-### 使用的第三方库
+## 使用的第三方库
 
 numpy：用于数据科学处理
 

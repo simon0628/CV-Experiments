@@ -370,17 +370,19 @@ for pic_arr in pics_arr:
 
 
     # Sobel和prewitt边缘处理
-    area_filter_method = 'sobel'
-    area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+    # area_filter_method = 'sobel'
+    # area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    # Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
 
-    area_filter_method = 'prewitt'
-    area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+    # area_filter_method = 'prewitt'
+    # area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    # Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
 
+    plt.tight_layout()
 
     plt.savefig(histpath + 'res' + str(cnt) + '.png')
     plt.close()
 
-    print('处理完%d张' % cnt)
+    print('已处理%d张' % cnt)
     cnt = cnt + 1
+print('处理完毕!')

@@ -175,30 +175,30 @@ def show_DCT(img_arr):
     plt.title('img_dct_python')
     plt.show()
 
-# lena_grey = Image.open('./lena_pic/Lena.bmp').convert('L')
-# img_arr = np.array(lena_grey)
+lena_grey = Image.open('/Users/simon/Desktop/CV-Experiments/others/src/1.JPEG').convert('L')
+img_arr = np.array(lena_grey)
 
 
-img_arr = load_bmp('/Users/simon/Desktop/CV-Experiments/pic/Lena.bmp')
+# img_arr = load_bmp('/Users/simon/Desktop/CV-Experiments/pic/Lena.bmp')
 # print(img_arr)
 [rows, cols] = img_arr.shape
 
 # show_greyval(img_arr)
 # show_grey_histogram(img_arr) # warning: slow
 
-# scale = 4
+scale = 4
 
-# padded_arr = pad_img(img_arr, rows, cols, scale)
-# Image.fromarray(np.uint8(padded_arr)).save('../res/padded.png')
+padded_arr = pad_img(img_arr, rows, cols, scale)
+Image.fromarray(np.uint8(padded_arr)).save('../res/padded.png')
 
-# nearest_inter_arr = nearest_inter(img_arr, rows*scale, cols * scale)
-# Image.fromarray(np.uint8(nearest_inter_arr)).save('../res/nearest_inter.png')
+nearest_inter_arr = nearest_inter(img_arr, rows*scale, cols * scale)
+Image.fromarray(np.uint8(nearest_inter_arr)).save('../res/nearest_inter.png')
 
-# bilinear_inter_arr = bilinear_inter(img_arr, rows*scale, cols * scale)
-# Image.fromarray(np.uint8(bilinear_inter_arr)).save('../res/bilinear_inter.png')
+bilinear_inter_arr = bilinear_inter(img_arr, rows*scale, cols * scale)
+Image.fromarray(np.uint8(bilinear_inter_arr)).save('../res/bilinear_inter.png')
 
-# trilinear_inter_arr = trilinear_inter(img_arr, rows*scale, cols * scale)
-# Image.fromarray(np.uint8(trilinear_inter_arr)).save('../res/trilinear_inter.png')
+trilinear_inter_arr = trilinear_inter(img_arr, rows*scale, cols * scale)
+Image.fromarray(np.uint8(trilinear_inter_arr)).save('../res/trilinear_inter.png')
 
 # show_FFT(img_arr)
-show_DCT(img_arr)
+# show_DCT(img_arr)

@@ -7,6 +7,103 @@ import math
 import os
 import sys
 
+class img_resize():
+
+    def nearest_inter(self, img_arr, tar_height, tar_width):
+        [height, width] = img_arr.shape
+        new_img = np.zeros((tar_height, tar_width), np.uint8)
+        sh = tar_height/height
+        sw = tar_width/width
+        for i in range(tar_height):
+            for j in range(tar_width):
+                x = int(i/sh)
+                y = int(j/sw)
+                new_img[i, j] = img_arr[x, y]
+        return new_img
+
+
+    def bilinear_inter(self,img_arr, tar_height, tar_width):
+        [height, width] = img_arr.shape
+        new_img = np.zeros((tar_height, tar_width), np.uint8)
+        sh = tar_height/height
+        sw = tar_width/width
+        for i in range(tar_height):
+            for j in range(tar_width):
+                x = i/sh
+                y = j/sw
+                p = (i+0.0)/sh-x
+                q = (j+0.0)/sw-y
+                x = int(x)-1
+                y = int(y)-1
+                if x+1 < tar_height and y+1 < tar_width:
+                    new_img[i, j] = int(img_arr[x][y]*(1-p)*(1-q)+img_arr[x][y+1]
+                                        * q*(1-p)+img_arr[x+1][y]*(1-q)*p+img_arr[x+1][y+1]*p*q)
+        return new_img
+
+
+    def S(self, x):
+        x = np.abs(x)
+        if 0 <= x < 1:
+            return 1 - 2 * x * x + x * x * x
+        if 1 <= x < 2:
+            return 4 - 8 * x + 5 * x * x - x * x * x
+        else:
+            return 0
+
+
+    def trilinear_inter(self,img_arr, tar_height, tar_width):
+        height, width = img_arr.shape
+        new_img = np.zeros((tar_height, tar_width), np.uint8)
+        sh = tar_height/height
+        sw = tar_width/width
+        for i in range(tar_height):
+            for j in range(tar_width):
+                x = i/sh
+                y = j/sw
+                p = (i+0.0)/sh-x
+                q = (j+0.0)/sw-y
+                x = int(x)-2
+                y = int(y)-2
+                if x >= 1 and x <= (tar_height-3) and y >= 1 and y <= (tar_width-3):
+                    A = np.array([
+                        [S(1 + p), S(p), S(1 - p), S(2 - p)]
+                    ])
+
+                    B = np.array([
+                        [img_arr[x-1, y-1], img_arr[x-1, y],
+                        img_arr[x-1, y+1],
+                        img_arr[x-1, y+1]],
+                        [img_arr[x, y-1], img_arr[x, y],
+                        img_arr[x, y+1], img_arr[x, y+2]],
+                        [img_arr[x+1, y-1], img_arr[x+1, y],
+                        img_arr[x+1, y+1], img_arr[x+1, y+2]],
+                        [img_arr[x+2, y-1], img_arr[x+2, y],
+                        img_arr[x+2, y+1], img_arr[x+2, y+1]],
+
+                    ])
+
+                    C = np.array([
+                        [S(1 + q)],
+                        [S(q)],
+                        [S(1 - q)],
+                        [S(2 - q)]
+                    ])
+
+                    grey = np.dot(np.dot(A, B), C)
+
+                    if grey > 255:
+                        grey = 255
+                    elif grey < 0:
+                        grey = 0
+
+                else:
+                    grey = img_arr[x, y]
+
+                new_img[i, j] = grey
+
+        return new_img
+
+        
 # 绘制图像灰度直方图
 def plot_grey_histogram(img_arr):
     '''
@@ -72,36 +169,63 @@ def equal_his(img_arr):
     return hist_res
 
 
-def point_cast(x):
+def init_gammar_cast(c, y):
+    gammar_cast_arr = np.zeros(256)
+    max = c * math.pow(255, y)
+    for x in range(255):
+        gammar_cast_arr[x] = c * math.pow(x, y) / max * 256
+    return gammar_cast_arr
+
+def point_cast(x, method):
     '''
     :param x: 输入灰度值
     :return: y: 映射结果
     :note: 点操作的映射函数    
     '''
-    # 采用Z型函数，可提高对比度
-    if x <= 48:
-        y = 0
-    elif x > 218:
-        y = 255
-    else:
-        y = 1.5*x-72
+
+    if method == 'Z-improve-contrast':
+        # 采用Z型函数，可提高对比度
+        if x <= 48:
+            y = 0
+        elif x > 218:
+            y = 255
+        else:
+            y = 1.5*x-72
+    
+    elif method == 'linear':
+        # 降低对比度
+        y = 0.56 * x
+    
+    elif method == 'log':
+        # 低灰度区扩展，高灰度区压缩
+        # y = 32*log(1+x)
+        # x = 0 -> y = 0
+        # x = 255 -> y = 255
+        y = 32 * math.log2(1+x)
 
     # 规范输出灰度值范围
     if y > 255:
         y = 255
+    if y < 0:
+        y = 0
     return y
 
 # 基于点处理的增强
-def point_enhance(img_arr):
+def point_enhance(img_arr, method = 'linear'):
     '''
     :param image_arr: 图片矩阵
     :return: res: 图像经过点增强的运算结果
     '''    
+    if method == 'gammar':
+        gammar_cast = init_gammar_cast(1, 0.8)
     h, w = img_arr.shape
     res = np.zeros([h,w], np.uint8)
     for i in range(h):
         for j in range(w):
-            res[i][j] = point_cast(img_arr[i][j])
+            if method == 'gammar':
+                res[i][j] = gammar_cast[img_arr[i][j]]
+            else:
+                res[i][j] = point_cast(img_arr[i][j], method)
     return res
 
 # 图片卷积操作
@@ -280,7 +404,7 @@ def area_enhance(img_arr, method=None):
 # 图像大小更正，统一为500*333，并存储在临时路径中
 def pic_resize(temppath):
     for i in range(1, pic_num + 1):
-        readname = '../pics/ILSVRC2017_test_%08d.JPEG' % i
+        readname = '../pic/ILSVRC2017_test_%08d.JPEG' % i
         writename = '%sILSVRC2017_test_%08d.JPEG' % (temppath, i)
 
         with Image.open(readname) as img:
@@ -322,22 +446,25 @@ prewitt_2 = np.array([[-1, -1, -1],
 
 pic_num = 5
 area_filter_method = 'average'
+point_filter_method = 'linear'
 
 for i in range(len(sys.argv)):
     if sys.argv[i] == '-number' or sys.argv[i] ==  '-n':
         pic_num = int(sys.argv[i+1])
-    if sys.argv[i] == '-method' or sys.argv[i] ==  '-m':
+    if sys.argv[i] == '-area' or sys.argv[i] ==  '-a':
         area_filter_method = sys.argv[i+1]
+    if sys.argv[i] == '-point' or sys.argv[i] ==  '-p':
+        point_filter_method = sys.argv[i+1]
 
 print('开始进行图像处理，参数如下')
 print('    处理数量：%d张' % pic_num)
-print('    点处理函数：对比度增强')
+print('    点处理函数：%s函数' % point_filter_method)
 print('    邻域处理函数：%s滤波' % area_filter_method)
 print('处理中...')
 
 
 
-pic_resize(temppath)
+# pic_resize(temppath)
 pics_arr = read_pics(temppath)
 
 cnt = 1
@@ -355,11 +482,11 @@ for pic_arr in pics_arr:
     Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
 
     # 点操作的图像增强
-    point_pic_arr = point_enhance(pic_arr)
+    point_pic_arr = point_enhance(pic_arr, point_filter_method)
     p = plt.subplot(2,2,3)
     p.set_title('Histogram After Point Enhance',fontsize='medium')
     plot_grey_histogram(point_pic_arr)
-    Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point.png')
+    Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point_' + point_filter_method + '.png')
 
     # 邻域操作的图像增强
     area_pic_arr = area_enhance(pic_arr, area_filter_method)

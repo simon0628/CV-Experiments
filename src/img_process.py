@@ -66,7 +66,7 @@ class img_resize():
                 y = int(y)-2
                 if x >= 1 and x <= (tar_height-3) and y >= 1 and y <= (tar_width-3):
                     A = np.array([
-                        [S(1 + p), S(p), S(1 - p), S(2 - p)]
+                        [self.S(1 + p), self.S(p), self.S(1 - p), self.S(2 - p)]
                     ])
 
                     B = np.array([
@@ -83,10 +83,10 @@ class img_resize():
                     ])
 
                     C = np.array([
-                        [S(1 + q)],
-                        [S(q)],
-                        [S(1 - q)],
-                        [S(2 - q)]
+                        [self.S(1 + q)],
+                        [self.S(q)],
+                        [self.S(1 - q)],
+                        [self.S(2 - q)]
                     ])
 
                     grey = np.dot(np.dot(A, B), C)
@@ -103,7 +103,7 @@ class img_resize():
 
         return new_img
 
-        
+
 # 绘制图像灰度直方图
 def plot_grey_histogram(img_arr):
     '''
@@ -217,7 +217,9 @@ def point_enhance(img_arr, method = 'linear'):
     :return: res: 图像经过点增强的运算结果
     '''    
     if method == 'gammar':
-        gammar_cast = init_gammar_cast(1, 0.8)
+        y = 1/2.2
+        c = 255/(math.pow(255, 0.45))
+        gammar_cast = init_gammar_cast(c, y)
     h, w = img_arr.shape
     res = np.zeros([h,w], np.uint8)
     for i in range(h):
@@ -272,7 +274,7 @@ def average_filter(image, kernel_size):
     return img_convolve(image, kernel) * (1.0 / kernel.size)
 
 # 最大值滤波
-def max_filter(image, kernel_size):
+def max_filter(image, kernel_size, max_min = False):
     '''
     :param image: 图片矩阵
     :param kernel_size: 滤波窗口size
@@ -298,7 +300,10 @@ def max_filter(image, kernel_size):
     for i in range(padding, padding + img_h):
         for j in range(padding, padding + img_w):
             filtered = img_padding[i-padding:i+padding+1, j-padding:j+padding+1]
-            res[i-padding][j-padding] = max(map(max,filtered))      
+            if max_min == False:
+                res[i-padding][j-padding] = max(map(max,filtered))      
+            else:
+                res[i-padding][j-padding] = min(map(min,filtered))      
     return res
 
 # 中值滤波
@@ -387,6 +392,8 @@ def area_enhance(img_arr, method=None):
         res = np.array(prewitt_filter(img_arr, prewitt_1, prewitt_2), dtype=np.int)
     elif method == 'max':
         res = np.array(max_filter(img_arr, 3), dtype=np.int)
+    elif method == 'min':
+        res = np.array(max_filter(img_arr, 3, True), dtype=np.int)
     elif method == 'mid':
         res = np.array(mid_filter(img_arr, 3), dtype=np.int)
     else:
@@ -401,6 +408,15 @@ def area_enhance(img_arr, method=None):
                 res[i][j] = 0
     return res
 
+# 为图片添加椒盐噪声
+def addsalt_pepper(img, SNR = 0.9):
+    res = img.copy()
+    h, w = res.shape
+    mask = np.random.choice((0, 1, 2), size=(h, w), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
+    res[mask == 1] = 255    # 盐噪声
+    res[mask == 2] = 0      # 椒噪声
+    return res
+
 # 图像大小更正，统一为500*333，并存储在临时路径中
 def pic_resize(temppath):
     for i in range(1, pic_num + 1):
@@ -408,6 +424,7 @@ def pic_resize(temppath):
         writename = '%sILSVRC2017_test_%08d.JPEG' % (temppath, i)
 
         with Image.open(readname) as img:
+            # plt.plot(img.size[0], img.size[1], 'k*') # 统计所有图片的尺寸
             img.convert('L').resize((500,333)).save(writename)
 
 # 从目标路径中读取图片，需要保证图片已经预处理完毕，直接可用
@@ -444,7 +461,7 @@ prewitt_2 = np.array([[-1, -1, -1],
                       [1, 1, 1]])
 
 
-pic_num = 5
+pic_num = 3
 area_filter_method = 'average'
 point_filter_method = 'linear'
 
@@ -465,28 +482,32 @@ print('处理中...')
 
 
 # pic_resize(temppath)
+
 pics_arr = read_pics(temppath)
 
 cnt = 1
 for pic_arr in pics_arr:
-    # 绘制原始图像灰度直方图
-    p = plt.subplot(2,2,1)
-    p.set_title('Histogram of Raw Picture',fontsize='medium')
-    plot_grey_histogram(pic_arr)
+    # # 绘制原始图像灰度直方图
+    # p = plt.subplot(2,2,1)
+    # p.set_title('Histogram of Raw Picture',fontsize='medium')
+    # plot_grey_histogram(pic_arr)
     
-    # 直方图均衡
-    equal_pic_arr = equal_his(pic_arr)
-    p = plt.subplot(2,2,2)
-    p.set_title('Histogram After Histo Equal',fontsize='medium')
-    plot_grey_histogram(equal_pic_arr)
-    Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
+    # # 直方图均衡
+    # equal_pic_arr = equal_his(pic_arr)
+    # p = plt.subplot(2,2,2)
+    # p.set_title('Histogram After Histo Equal',fontsize='medium')
+    # plot_grey_histogram(equal_pic_arr)
+    # Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
 
-    # 点操作的图像增强
-    point_pic_arr = point_enhance(pic_arr, point_filter_method)
-    p = plt.subplot(2,2,3)
-    p.set_title('Histogram After Point Enhance',fontsize='medium')
-    plot_grey_histogram(point_pic_arr)
-    Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point_' + point_filter_method + '.png')
+    # # 点操作的图像增强
+    # point_pic_arr = point_enhance(pic_arr, point_filter_method)
+    # p = plt.subplot(2,2,3)
+    # p.set_title('Histogram After Point Enhance',fontsize='medium')
+    # plot_grey_histogram(point_pic_arr)
+    # Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point_' + point_filter_method + '.png')
+
+    pic_arr = addsalt_pepper(pic_arr, 0.95)
+    Image.fromarray(np.uint8(pic_arr)).save(respath + 'res' + str(cnt) + '_pepper.png')
 
     # 邻域操作的图像增强
     area_pic_arr = area_enhance(pic_arr, area_filter_method)
@@ -505,10 +526,10 @@ for pic_arr in pics_arr:
     # area_pic_arr = area_enhance(pic_arr, area_filter_method)
     # Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
 
-    plt.tight_layout()
+    # plt.tight_layout()
 
-    plt.savefig(histpath + 'res' + str(cnt) + '.png')
-    plt.close()
+    # plt.savefig(histpath + 'res' + str(cnt) + '.png')
+    # plt.close()
 
     print('已处理%d张' % cnt)
     cnt = cnt + 1

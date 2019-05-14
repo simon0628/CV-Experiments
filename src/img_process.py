@@ -8,7 +8,7 @@ import os
 import sys
 
 class img_resize():
-
+    @staticmethod
     def nearest_inter(self, img_arr, tar_height, tar_width):
         [height, width] = img_arr.shape
         new_img = np.zeros((tar_height, tar_width), np.uint8)
@@ -337,7 +337,7 @@ def mid_filter(image, kernel_size):
 
 
 # 高斯滤波
-def gaussian(sigma):
+def gaussian(sigma = 0.5):
     '''
     :param sigma: σ标准差
     :return: 高斯滤波器的模板
@@ -348,6 +348,16 @@ def gaussian(sigma):
         for y in range(-sigma, sigma + 1):
             gaussian_mat[x + sigma][y + sigma] = np.exp(-0.5 * (x ** 2 + y ** 2) / (sigma ** 2))
     return gaussian_mat
+
+# 均值滤波
+def gaussian_filter(image, kernel_size):
+    '''
+    :param image: 图片矩阵
+    :param kernel_size: 滤波窗口size
+    :return: 高斯滤波后的矩阵
+    '''
+    kernel = gaussian()
+    return img_convolve(image, kernel) * (1.0 / kernel.size)
 
 
 # Sobel Edge
@@ -396,6 +406,8 @@ def area_enhance(img_arr, method=None):
         res = np.array(max_filter(img_arr, 3, True), dtype=np.int)
     elif method == 'mid':
         res = np.array(mid_filter(img_arr, 3), dtype=np.int)
+    elif method == 'gaussian':
+        res = np.array(gaussian_filter(img_arr, 3), dtype=np.int)
     else:
         res = np.array(average_filter(img_arr, 3), dtype=np.int)
 
@@ -408,14 +420,32 @@ def area_enhance(img_arr, method=None):
                 res[i][j] = 0
     return res
 
-# 为图片添加椒盐噪声
-def addsalt_pepper(img, SNR = 0.9):
-    res = img.copy()
-    h, w = res.shape
-    mask = np.random.choice((0, 1, 2), size=(h, w), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
-    res[mask == 1] = 255    # 盐噪声
-    res[mask == 2] = 0      # 椒噪声
-    return res
+class Noise(object):
+    
+    # 为图片添加椒盐噪声
+    def addsalt_pepper(self, img, SNR = 0.9):
+        res = img.copy()
+        h, w = res.shape
+        mask = np.random.choice((0, 1, 2), size=(h, w), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
+        res[mask == 1] = 255    # 盐噪声
+        res[mask == 2] = 0      # 椒噪声
+        return res
+    
+    # 添加高斯噪声
+    def add_gauss_noise(self, img_arr, mean=0, var=0.001):
+
+        noise = np.random.normal(mean, var ** 0.5, img_arr.shape) * 255
+        res = img_arr + noise
+
+        res = np.clip(res, 0, 255)
+        return res
+    
+    # 添加雾霾
+    def add_haze(self, img_arr , t=0.6, A=1):
+    # t : 透视率 0~1
+    # A : 大气光照
+        out = img_arr *t + A*255*(1-t)
+        return out
 
 # 图像大小更正，统一为500*333，并存储在临时路径中
 def pic_resize(temppath):
@@ -484,7 +514,7 @@ print('处理中...')
 # pic_resize(temppath)
 
 pics_arr = read_pics(temppath)
-
+noise = Noise()
 cnt = 1
 for pic_arr in pics_arr:
     # # 绘制原始图像灰度直方图
@@ -506,14 +536,50 @@ for pic_arr in pics_arr:
     # plot_grey_histogram(point_pic_arr)
     # Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point_' + point_filter_method + '.png')
 
-    pic_arr = addsalt_pepper(pic_arr, 0.95)
-    Image.fromarray(np.uint8(pic_arr)).save(respath + 'res' + str(cnt) + '_pepper.png')
+    # pic_arr = add_noise.addsalt_pepper(pic_arr, 0.95)
+    pic_arr = noise.add_gauss_noise(pic_arr)
+    Image.fromarray(np.uint8(pic_arr)).save(respath + 'res' + str(cnt) + '_noise.png')
 
     # 邻域操作的图像增强
     area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    p = plt.subplot(2,2,4)
-    p.set_title('Histogram After Area Enhance',fontsize='medium')
-    plot_grey_histogram(area_pic_arr)
+    # p = plt.subplot(2,2,4)
+    # p.set_title('Histogram After Area Enhance',fontsize='medium')
+    # plot_grey_histogram(area_pic_arr)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+
+    
+    area_filter_method = 'max'
+
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    # p = plt.subplot(2,2,4)
+    # p.set_title('Histogram After Area Enhance',fontsize='medium')
+    # plot_grey_histogram(area_pic_arr)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+
+    area_filter_method = 'min'
+
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    # p = plt.subplot(2,2,4)
+    # p.set_title('Histogram After Area Enhance',fontsize='medium')
+    # plot_grey_histogram(area_pic_arr)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+
+
+    area_filter_method = 'gaussian'
+
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    # p = plt.subplot(2,2,4)
+    # p.set_title('Histogram After Area Enhance',fontsize='medium')
+    # plot_grey_histogram(area_pic_arr)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+
+
+    area_filter_method = 'mid'
+
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    # p = plt.subplot(2,2,4)
+    # p.set_title('Histogram After Area Enhance',fontsize='medium')
+    # plot_grey_histogram(area_pic_arr)
     Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
 
 

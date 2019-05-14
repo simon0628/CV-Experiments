@@ -337,7 +337,7 @@ def mid_filter(image, kernel_size):
 
 
 # 高斯滤波
-def gaussian(sigma = 0.5):
+def gaussian(sigma = 6):
     '''
     :param sigma: σ标准差
     :return: 高斯滤波器的模板
@@ -347,18 +347,18 @@ def gaussian(sigma = 0.5):
     for x in range(-sigma, sigma + 1):
         for y in range(-sigma, sigma + 1):
             gaussian_mat[x + sigma][y + sigma] = np.exp(-0.5 * (x ** 2 + y ** 2) / (sigma ** 2))
+    # print(gaussian_mat)
     return gaussian_mat
 
-# 均值滤波
+# 高斯滤波
 def gaussian_filter(image, kernel_size):
     '''
     :param image: 图片矩阵
     :param kernel_size: 滤波窗口size
     :return: 高斯滤波后的矩阵
     '''
-    kernel = gaussian()
-    return img_convolve(image, kernel) * (1.0 / kernel.size)
 
+    return img_convolve(image, gaussian_2) * (1.0 / np.sum(gaussian_2))
 
 # Sobel Edge
 def sobel_filter(image, sobel):
@@ -490,7 +490,15 @@ prewitt_2 = np.array([[-1, -1, -1],
                       [0, 0, 0],
                       [1, 1, 1]])
 
-
+gaussian_1 = np.array([[1,4,7,4,1],
+                       [4,16,26,16,4],
+                       [7,26,41,26,7],
+                       [4,16,26,16,4],
+                       [1,4,7,4,1]])
+                
+gaussian_2 = np.array([[1,2,4],
+                       [2,4,2],
+                       [1,2,4]])
 pic_num = 3
 area_filter_method = 'average'
 point_filter_method = 'linear'

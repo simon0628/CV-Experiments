@@ -466,6 +466,12 @@ def read_pics(pic_path):
             pics_arr.append(np.array(img, dtype = np.int32))
     return pics_arr
 
+# 计算图片与原图相比的信噪比
+def psnr(img1, img2):
+   mse = np.mean((img1 - img2) ** 2 )
+   if mse < 1.0e-10:
+      return 100
+   return 10 * math.log10(255.0**2/mse)
 
 # 工程路径
 temppath = '../res/temp/'
@@ -499,7 +505,7 @@ gaussian_1 = np.array([[1,4,7,4,1],
 gaussian_2 = np.array([[1,2,4],
                        [2,4,2],
                        [1,2,4]])
-pic_num = 3
+pic_num = 5
 area_filter_method = 'average'
 point_filter_method = 'linear'
 
@@ -515,95 +521,67 @@ print('开始进行图像处理，参数如下')
 print('    处理数量：%d张' % pic_num)
 print('    点处理函数：%s函数' % point_filter_method)
 print('    邻域处理函数：%s滤波' % area_filter_method)
-print('处理中...')
+print('处理中...\n')
 
+area_methods = ['max', 'min', 'mid', 'gaussian', 'average']
 
-
-# pic_resize(temppath)
+pic_resize(temppath)
 
 pics_arr = read_pics(temppath)
 noise = Noise()
 cnt = 1
 for pic_arr in pics_arr:
-    # # 绘制原始图像灰度直方图
-    # p = plt.subplot(2,2,1)
-    # p.set_title('Histogram of Raw Picture',fontsize='medium')
-    # plot_grey_histogram(pic_arr)
+    # 绘制原始图像灰度直方图
+    p = plt.subplot(2,2,1)
+    p.set_title('Histogram of Raw Picture',fontsize='medium')
+    plot_grey_histogram(pic_arr)
     
-    # # 直方图均衡
-    # equal_pic_arr = equal_his(pic_arr)
-    # p = plt.subplot(2,2,2)
-    # p.set_title('Histogram After Histo Equal',fontsize='medium')
-    # plot_grey_histogram(equal_pic_arr)
-    # Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
+    # 直方图均衡
+    equal_pic_arr = equal_his(pic_arr)
+    p = plt.subplot(2,2,2)
+    p.set_title('Histogram After Histo Equal',fontsize='medium')
+    plot_grey_histogram(equal_pic_arr)
+    Image.fromarray(np.uint8(equal_pic_arr)).save(respath + 'res' + str(cnt) + '_histo.png')
 
-    # # 点操作的图像增强
-    # point_pic_arr = point_enhance(pic_arr, point_filter_method)
-    # p = plt.subplot(2,2,3)
-    # p.set_title('Histogram After Point Enhance',fontsize='medium')
-    # plot_grey_histogram(point_pic_arr)
-    # Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point_' + point_filter_method + '.png')
+    # 点操作的图像增强
+    point_pic_arr = point_enhance(pic_arr, point_filter_method)
+    p = plt.subplot(2,2,3)
+    p.set_title('Histogram After Point Enhance',fontsize='medium')
+    plot_grey_histogram(point_pic_arr)
+    Image.fromarray(np.uint8(point_pic_arr)).save(respath + 'res' + str(cnt) + '_point_' + point_filter_method + '.png')
 
     # pic_arr = add_noise.addsalt_pepper(pic_arr, 0.95)
     pic_arr = noise.add_gauss_noise(pic_arr)
     Image.fromarray(np.uint8(pic_arr)).save(respath + 'res' + str(cnt) + '_noise.png')
 
+    psnrs = []
+    for method in area_methods:
+        area_pic_arr = area_enhance(pic_arr, method)
+        snr = psnr(area_pic_arr, pic_arr)
+        psnrs.append(snr)
+    min_index = psnrs.index(max(psnrs))
+    print("本图片最佳方法为: " + area_methods[min_index] + '滤波')
+
     # 邻域操作的图像增强
     area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    # p = plt.subplot(2,2,4)
-    # p.set_title('Histogram After Area Enhance',fontsize='medium')
-    # plot_grey_histogram(area_pic_arr)
+    p = plt.subplot(2,2,4)
+    p.set_title('Histogram After Area Enhance',fontsize='medium')
+    plot_grey_histogram(area_pic_arr)
     Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
-
-    
-    area_filter_method = 'max'
-
-    area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    # p = plt.subplot(2,2,4)
-    # p.set_title('Histogram After Area Enhance',fontsize='medium')
-    # plot_grey_histogram(area_pic_arr)
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
-
-    area_filter_method = 'min'
-
-    area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    # p = plt.subplot(2,2,4)
-    # p.set_title('Histogram After Area Enhance',fontsize='medium')
-    # plot_grey_histogram(area_pic_arr)
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
-
-
-    area_filter_method = 'gaussian'
-
-    area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    # p = plt.subplot(2,2,4)
-    # p.set_title('Histogram After Area Enhance',fontsize='medium')
-    # plot_grey_histogram(area_pic_arr)
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
-
-
-    area_filter_method = 'mid'
-
-    area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    # p = plt.subplot(2,2,4)
-    # p.set_title('Histogram After Area Enhance',fontsize='medium')
-    # plot_grey_histogram(area_pic_arr)
-    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
-
 
     # Sobel和prewitt边缘处理
-    # area_filter_method = 'sobel'
-    # area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    # Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+    area_filter_method = 'sobel'
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
 
-    # area_filter_method = 'prewitt'
-    # area_pic_arr = area_enhance(pic_arr, area_filter_method)
-    # Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
+    area_filter_method = 'prewitt'
+    area_pic_arr = area_enhance(pic_arr, area_filter_method)
+    Image.fromarray(np.uint8(area_pic_arr)).save(respath + 'res' + str(cnt) + '_area_' + area_filter_method + '.png')
 
-    # plt.tight_layout()
+    plt.tight_layout()
 
-    # plt.savefig(histpath + 'res' + str(cnt) + '.png')
-    # plt.close()
+    plt.savefig(histpath + 'res' + str(cnt) + '.png')
+    plt.close()
 
     print('已处理%d张' % cnt)
     cnt = cnt + 1

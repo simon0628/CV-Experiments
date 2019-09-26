@@ -58,6 +58,7 @@ def get_DoG(scale_space, scales, show = False):
         for j in range(1, layer):
             diff = np.abs(scale_space[i][j].astype('int32')-scale_space[i][j-1].astype('int32'))
             new_scales.append(scales[scale_cnt])
+            scale_cnt += 1
             # print(diff)
             # plt.imshow(diff)
             # plt.show()
@@ -75,10 +76,12 @@ def get_DoG(scale_space, scales, show = False):
     return np.array(octaves), new_scales
 
 #%%
-def get_keypoints(DoG):
+def get_keypoints(DoG, scales):
     octave, layer = DoG.shape
     offset = [-1, 0, 1]
-    keypoints_alloct = list()
+    keypoints_octs = list()
+    scale_cnt = 0
+    new_scales = list()
 
     total = 0
     for i in range(octave):
@@ -90,7 +93,10 @@ def get_keypoints(DoG):
 
     with tqdm(total=total, ascii=True) as pbar:
         for i in range(octave):
+            scale_cnt += 1
             for j in range(1, layer-1):
+                new_scales.append(scales[scale_cnt])
+                scale_cnt += 1
                 keypoints = list()
                 diff = DoG[i][j]
                 h, w = diff.shape
@@ -120,11 +126,11 @@ def get_keypoints(DoG):
                         if ismax or ismin:
                             keypoints.append([ii, jj])
                         pbar.update(1)
-                
-                keypoints_alloct.append(keypoints)
+                keypoints_octs.append(keypoints)
+            scale_cnt += 1
 
     # total: octave * (layer-2) keypointmaps
-    return keypoints_alloct
+    return keypoints_octs, new_scales
 
 #%%
 
@@ -132,11 +138,11 @@ k = math.sqrt(2)
 sigma = 1.6
 scale_space, scales = get_scale_space(img, k, sigma, 4, 5)
 DoG, DoG_scales = get_DoG(scale_space, scales)
-keypoints_alloct = get_keypoints(DoG)
+keypoints_octs, kp_scales = get_keypoints(DoG, DoG_scales)
 
 #%%
 
-keypoints = keypoints_alloct[0]
+keypoints = keypoints_octs[0]
 print('points num = ', len(keypoints))
 plt.imshow(img_raw, cmap=plt.cm.gray)
 for keypoint in keypoints:
@@ -145,18 +151,22 @@ plt.show()
 
 #tylor expandsion and hessian elimination
 
-#%%
-def cal_grad(img):
+def padding(img, size):
     h,w = img.shape
 
-    convolve_h = int(h + 2 * 1)
-    convolve_w = int(w + 2 * 1)
+    convolve_h = int(h + 2 * size)
+    convolve_w = int(w + 2 * size)
 
     # 分配空间
     img_padding = np.zeros((convolve_h, convolve_w))
     # 中心填充图片
-    img_padding[1:1 + h, 1:1 + w] = img[:, :]
+    img_padding[size:size + h, size:size + w] = img[:, :]
+    return img_padding
 
+#%%
+def cal_grad(img, sigma):
+
+    img_padding = padding(img, 1)
 
     m = np.zeros((h,w))
     theta = np.zeros((h,w))
@@ -174,13 +184,45 @@ def cal_grad(img):
             else:
                 theta[i][j] = np.arctan((img_padding[i+2][j] - img_padding[i][j])/(img_padding[i][j+2] - img_padding[i][j]))
     
-    # img_blur = cv2.GaussianBlur(m, (5,5), sigmaX = 1.5*sigma)
+    img_blur = cv2.GaussianBlur(m, (5,5), sigmaX = 1.5*sigma)
 
     print(m)
     print(theta)
     return m, theta
 
-m, theta = cal_grad(img_arr)
+def get_ori(DoG, DoG_scales, keypoints_octs, kp_scales):
+    octave, level = DoG.shape
+    DoG_scale_cnt = 0
+    ori_padding = 10
+    ori_num = 360.ori_padding
+
+    for i in range(octave):
+        DoG_scale_cnt += 1
+        for j in range(1, level-1):
+            m, theta = cal_grad(DoG[i][j], DoG_scales[DoG_scale_cnt])
+            radius = int(DoG_scales[DoG_scale_cnt] * 1.5 * 3)
+            DoG_scale_cnt += 1
+            
+            DoG_padding = padding(DoG, radius)
+            keypoints = keypoints_octs[i][j-1]
+            h,w = m.shape
+            for keypoint in keypoints:
+                ori_histogram = np.zeros(ori_num)
+                for i_offset in range(-radius, radius):
+                    for j_offset in range(-radius, radius):
+                        i_sub = i+i_offset
+                        j_sub = j+j_offset
+                        if i_sub > 0 and i_sub < h and j_sub > 0 and j_sub < w:
+                            ind = int((theta[i_sub][j_sub] + pi/2) * 180/pi / ori_num)
+                            ori_histogram[ind] += m[i_sub][j_sub]
+
+
+                
+
+        DoG_scale_cnt += 1
+
+
+m, theta = cal_grad(img_arr, DoG_scales[0])
 show_img(m)
 
 #%%

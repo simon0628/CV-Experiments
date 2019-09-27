@@ -7,9 +7,10 @@ import math
 from tqdm import tqdm
 
 #%%
-img_raw = Image.open("small.png")
+img_raw = Image.open("test1.png")
 img = img_raw.convert('L')
 img_arr = np.array(img)
+imgw, imgh = img_arr.shape
 
 def show_img(img):
     plt.imshow(img,cmap=plt.cm.gray)
@@ -94,6 +95,7 @@ def get_keypoints(DoG, scales):
     with tqdm(total=total, ascii=True) as pbar:
         for i in range(octave):
             scale_cnt += 1
+            keypoints_oct = list()
             for j in range(1, layer-1):
                 new_scales.append(scales[scale_cnt])
                 scale_cnt += 1
@@ -126,11 +128,12 @@ def get_keypoints(DoG, scales):
                         if ismax or ismin:
                             keypoints.append([ii, jj])
                         pbar.update(1)
-                keypoints_octs.append(keypoints)
+                keypoints_oct.append(keypoints)
+            keypoints_octs.append(keypoints_oct)
             scale_cnt += 1
 
     # total: octave * (layer-2) keypointmaps
-    return keypoints_octs, new_scales
+    return np.array(keypoints_octs), new_scales
 
 #%%
 
@@ -142,12 +145,12 @@ keypoints_octs, kp_scales = get_keypoints(DoG, DoG_scales)
 
 #%%
 
-keypoints = keypoints_octs[0]
+keypoints = keypoints_octs[0][0]
 print('points num = ', len(keypoints))
-plt.imshow(img_raw, cmap=plt.cm.gray)
-for keypoint in keypoints:
-    plt.plot(keypoint[1], keypoint[0], 'r.')
-plt.show()
+# plt.imshow(img_raw, cmap=plt.cm.gray)
+# for keypoint in keypoints:
+#     plt.plot(keypoint[1], keypoint[0], 'r.')
+# plt.show()
 
 #tylor expandsion and hessian elimination
 
@@ -165,6 +168,7 @@ def padding(img, size):
 
 #%%
 def cal_grad(img, sigma):
+    h,w = img.shape
 
     img_padding = padding(img, 1)
 
@@ -175,54 +179,95 @@ def cal_grad(img, sigma):
         for j in range(w):
             m[i][j] = np.sqrt(np.square(img_padding[i+2][j] - img_padding[i][j])+np.square(img_padding[i][j+2] - img_padding[i][j]))
             if img_padding[i][j+2] - img_padding[i][j] == 0:
-                if img_padding[i+2][j] - img_padding[i][j] > 0:
-                    theta[i][j] = math.pi / 2
-                elif img_padding[i+2][j] - img_padding[i][j] < 0:
+                if img_padding[i+2][j] - img_padding[i][j] < 0:
                     theta[i][j] = -math.pi/2
                 else:
                     theta[i][j] = 0
             else:
                 theta[i][j] = np.arctan((img_padding[i+2][j] - img_padding[i][j])/(img_padding[i][j+2] - img_padding[i][j]))
     
-    img_blur = cv2.GaussianBlur(m, (5,5), sigmaX = 1.5*sigma)
+    # img_blur = cv2.GaussianBlur(m, (5,5), sigmaX = 1.5*sigma)
 
-    print(m)
-    print(theta)
     return m, theta
 
-def get_ori(DoG, DoG_scales, keypoints_octs, kp_scales):
-    octave, level = DoG.shape
-    DoG_scale_cnt = 0
-    ori_padding = 10
-    ori_num = 360.ori_padding
+#%%
+def gaussian_kernel_2d(kernel_size = 3,sigma = 0):
+    kx = cv2.getGaussianKernel(kernel_size,sigma)
+    ky = cv2.getGaussianKernel(kernel_size,sigma)
+    return np.multiply(kx,np.transpose(ky))
 
+#%%
+def get_ori(scale_space, scales, keypoints_octs, kp_scales):
+    octave, level = keypoints_octs.shape
+    scale_cnt = 0
+    ori_num = 36
+    ori_padding = 2*math.pi/ori_num
+
+    keypoints_ori_octs = list()
+    keypoints_mag_octs = list()
+
+    total = 0
     for i in range(octave):
-        DoG_scale_cnt += 1
-        for j in range(1, level-1):
-            m, theta = cal_grad(DoG[i][j], DoG_scales[DoG_scale_cnt])
-            radius = int(DoG_scales[DoG_scale_cnt] * 1.5 * 3)
-            DoG_scale_cnt += 1
-            
-            DoG_padding = padding(DoG, radius)
-            keypoints = keypoints_octs[i][j-1]
-            h,w = m.shape
-            for keypoint in keypoints:
-                ori_histogram = np.zeros(ori_num)
-                for i_offset in range(-radius, radius):
-                    for j_offset in range(-radius, radius):
-                        i_sub = i+i_offset
-                        j_sub = j+j_offset
-                        if i_sub > 0 and i_sub < h and j_sub > 0 and j_sub < w:
-                            ind = int((theta[i_sub][j_sub] + pi/2) * 180/pi / ori_num)
-                            ori_histogram[ind] += m[i_sub][j_sub]
+        for j in range(level):
+            total += len(keypoints_octs[i][j])
 
+    with tqdm(total=total, ascii=True) as pbar:
 
+        for i in range(octave):
+            keypoints_ori_oct = list()
+            keypoints_mag_oct = list()
+
+            for j in range(level):
+                m, theta = cal_grad(scale_space[i][j+1], scales[scale_cnt])
+                radius = int(scales[scale_cnt] * 1.5 * 3)
+                scale_cnt += 1
+
+                gaussian_kernel = gaussian_kernel_2d(1+2*radius, scales[scale_cnt] * 1.5)
                 
+                keypoints = keypoints_octs[i][j]
+                h,w = m.shape
+                keypoints_ori = list()
+                keypoints_mag = list()
+                for keypoint in keypoints:
+                    # print(keypoint)
+                    ori_histogram = np.zeros(ori_num)
+                    for i_offset in range(-radius, radius):
+                        for j_offset in range(-radius, radius):
+                            i_sub = keypoint[0]+i_offset
+                            j_sub = keypoint[1]+j_offset
+                            if i_sub > 0 and i_sub < h and j_sub > 0 and j_sub < w:
+                                ind = int((theta[i_sub][j_sub] + math.pi/2)*2/ori_padding)
+                                # print('theta=', theta[i_sub][j_sub])
+                                # print('ind  = ', ind)
+                                ori_histogram[ind] += m[i_sub][j_sub] * gaussian_kernel[i_offset+radius][j_offset+radius]
+                    maxarg_ori = np.argmax(ori_histogram)
+                    keypoints_ori.append(maxarg_ori)
+                    keypoints_mag.append(ori_histogram[maxarg_ori])
+                    pbar.update(1)
 
-        DoG_scale_cnt += 1
+                keypoints_ori_oct.append(keypoints_ori)
+                keypoints_mag_oct.append(keypoints_mag)
+            keypoints_ori_octs.append(keypoints_ori_oct)
+            keypoints_mag_octs.append(keypoints_mag_oct)
+    return keypoints_ori_octs, keypoints_mag_octs
 
 
-m, theta = cal_grad(img_arr, DoG_scales[0])
-show_img(m)
+keypoints_ori_octs, keypoints_mag_octs = get_ori(scale_space, scales, keypoints_octs, kp_scales)
 
+#%%
+plt.imshow(img_raw, cmap=plt.cm.gray)
+
+keypoints = keypoints_octs[0][0]
+keypoints_ori = keypoints_ori_octs[0][0]
+keypoints_mag = keypoints_mag_octs[0][0]
+
+for i in range(len(keypoints)):
+    keypoint = keypoints[i]
+    ori = keypoints_ori[i] * 10
+    m = keypoints_mag[i] * imgw / 300
+    # print(ori, m)
+    plt.arrow(keypoint[1], keypoint[0], m*math.cos(ori), m*math.sin(ori), width=imgw/300, color = 'r')
+    # plt.plot(keypoint[1], keypoint[0], 'r.')
+plt.show()
+#%%
 #%%
